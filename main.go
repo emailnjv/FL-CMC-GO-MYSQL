@@ -124,31 +124,26 @@ func rootGen(in <-chan *http.Response) <-chan *html.Node {
 	return out
 }
 
-func resultNodeExchangeGen(in <-chan *html.Node) <-chan string {
+func resultNodeExchangeGen(in <-chan *html.Node) bool {
 	var wg sync.WaitGroup
-	out := make(chan Exchange)
 	for root := range in {
 		wg.Add(1)
-		tableMatcher := func(n *html.Node) bool {
-			if n.DataAtom == atom.Table && n != nil {
-				return scrape.Attr(n, "id") == "exchange-markets"
-			}
-			return false
-		}
-
-		var results = scrape.Find(root, tableMatcher)
-		var wg1 sync.WaitGroup
-
 		rowMatcher := func(n *html.Node) bool {
-			if n.DataAtom == atom.Tbody && n != nil && atom.Child.DataAtom == atom.Tr {
-				return
+			if n.DataAtom == atom.Tr && n != nil && scrape.Attr(n.Parent.Parent, "id") == "exchange-markets" {
+				return n.Parent.DataAtom == atom.Tbody
 			}
 			return false
 		}
 
-		for result := range results {
-			wg1.Add(1)
-			//out := make(chan *html.Node)
+		var results = scrape.FindAll(root, rowMatcher)
+
+		var wg1 sync.WaitGroup
+		wg1.Add(len(results))
+		// ********
+		for _, result := range results {
+
+			fmt.Println(scrape.Text(result))
+			out := make(chan *html.Node)
 			go func(n *html.Node) {
 				defer wg1.Done()
 				if strings.Contains(scrape.Text(n), "Sponsored P.when") {
@@ -158,7 +153,6 @@ func resultNodeExchangeGen(in <-chan *html.Node) <-chan string {
 					out <- scrape.Text(n)
 				}
 			}(result)
-
 		}
 		go func() {
 			wg1.Wait()
