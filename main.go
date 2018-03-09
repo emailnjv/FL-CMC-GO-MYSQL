@@ -171,6 +171,7 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 		var wg1 sync.WaitGroup
 		wg1.Add(len(results))
 		// ********
+
 		for _, resultz := range results {
 			defer wg1.Done()
 
@@ -183,10 +184,30 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 			}
 			if arr[len(arr)-1] != "Recently" {
 				updateMatcherResult = false
+				arr = arr[:len(arr)-2]
 
 			}
 
-			arrr1 := arr[len(arr)-5][1:]
+			var arrr1 string
+			if arr[len(arr)-5] != "***" && arr[len(arr)-5] != "*" {
+				arrr1 = arr[len(arr)-5][1:]
+				if arrr1 == "***" {
+					arrr1 = arr[len(arr)-6][1:]
+				}
+			}
+			if arr[len(arr)-5] == "***" {
+				arrr1 = arr[len(arr)-4][1:]
+				if arrr1 == "***" {
+					arrr1 = arr[len(arr)-6][1:]
+				}
+			}
+			if arr[len(arr)-5] == "*" {
+				arrr1 = arr[len(arr)-4][1:]
+				if arrr1 == "***" {
+					arrr1 = arr[len(arr)-6][1:]
+				}
+			}
+
 			arrr12 := strings.Replace(arrr1, ",", "", -1)
 			var arrr13, err1 = strconv.ParseFloat(arrr12, 64)
 			if err1 != nil {
@@ -202,7 +223,7 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 
 			}
 
-			arr3 := arr[len(arr)-3][1:]
+			arr3 := arr[len(arr)-3]
 			arr32 := strings.Replace(arr3, ",", "", -1)
 			var arrr33, err3 = strconv.ParseFloat(arr32, 64)
 			if err3 != nil {
