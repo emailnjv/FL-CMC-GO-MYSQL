@@ -1,15 +1,17 @@
 package main
 
 import (
-	"io/ioutil"
-	"net/http"
-	//"sync"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/yhat/scrape"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
@@ -21,8 +23,58 @@ var (
 
 )
 
+type Currency struct {
+	Name              string
+	Pair              string
+	Volume            int
+	Price             int
+	CirculatingSupply int
+	oneHour           int
+	oneDay            int
+	oneWeek           int
+}
+
+type Exchange struct {
+	Currency        string
+	Pair            string
+	VolumeCur       int
+	Price           int
+	VolumePercent   int
+	UpdatedRecently int
+}
+
 type UrlArrStruct struct {
 	Urls []string `json:"urls"`
+}
+
+func dbConn() (db *sql.DB) {
+	dbDriver := "mysql"
+	dbUser := "root"
+	dbPass := "toor"
+	dbName := "coin_market_cap"
+	db, err := sql.Open(dbDriver, dbUser+":"+dbPass+"@/"+dbName)
+	if err != nil {
+		panic(err.Error())
+	}
+	return db
+}
+
+func InsertExchange(exch Exchange) {
+	db := dbConn()
+	Currency := exch.Currency
+	Pair := exch.Pair
+	VolumeCur := exch.VolumeCur
+	Price := exch.Price
+	VolumePercent := exch.VolumePercent
+	UpdatedRecently := exch.UpdatedRecently
+	insForm, err := db.Prepare("INSERT INTO exchange(TimeScraped=NOW(), Currency=?, Pair=?, VolumeCur=?, Price=?, VolumePercent=?, UpdatedRecently=?)")
+	if err != nil {
+		panic(err.Error())
+	}
+	insForm.Exec(Currency, Pair, VolumeCur, Price, VolumePercent, UpdatedRecently)
+	log.Println(Currency, Pair, VolumeCur, Price, VolumePercent, UpdatedRecently)
+
+	defer db.Close()
 }
 
 func respGen(urls ...string) <-chan *http.Response {
@@ -72,22 +124,29 @@ func rootGen(in <-chan *http.Response) <-chan *html.Node {
 	return out
 }
 
-func resultNodeGen(in <-chan *html.Node) <-chan string {
+func resultNodeExchangeGen(in <-chan *html.Node) <-chan string {
 	var wg sync.WaitGroup
-	out := make(chan string)
+	out := make(chan Exchange)
 	for root := range in {
 		wg.Add(1)
-		resultMatcher := func(n *html.Node) bool {
-			if n.DataAtom == atom.Div && n != nil {
-				return scrape.Attr(n, "class") == "a-fixed-left-grid-col a-col-right"
+		tableMatcher := func(n *html.Node) bool {
+			if n.DataAtom == atom.Table && n != nil {
+				return scrape.Attr(n, "id") == "exchange-markets"
 			}
 			return false
 		}
 
-		var results = scrape.FindAll(root, resultMatcher)
+		var results = scrape.Find(root, tableMatcher)
 		var wg1 sync.WaitGroup
 
-		for _, result := range results {
+		rowMatcher := func(n *html.Node) bool {
+			if n.DataAtom == atom.Tbody && n != nil && atom.Child.DataAtom == atom.Tr {
+				return
+			}
+			return false
+		}
+
+		for result := range results {
 			wg1.Add(1)
 			//out := make(chan *html.Node)
 			go func(n *html.Node) {
@@ -123,7 +182,7 @@ func getUrls() {
 	}
 	json.Unmarshal(raw, &urlArr)
 
-	for result := range resultNodeGen(rootGen(respGen(urlArr.Urls...))) {
+	for result := range resultNodeExchangeGen(rootGen(respGen(urlArr.Urls...))) {
 		fmt.Println(result)
 	}
 	// jsonData, err := json.Marshal(resultList)
