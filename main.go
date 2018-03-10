@@ -216,16 +216,6 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 
 
 
-			arr3 := arr[len(arr)-3]
-			arr32 := strings.Replace(arr3, ",", "", -1)
-			var arrr33, err3 = strconv.ParseFloat(arr32, 64)
-			if err3 != nil {
-				fmt.Println(err3)
-				fmt.Println("&&&&&&&&&&&&&&&&")
-			}
-
-
-
 
 			/*
 			-----------------------------------------------------------------------------------
@@ -310,9 +300,31 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 			-----------------------------------------------------------------------------------
 			*/
 
-			fmt.Println(parsedVolume)
 
-			InsertExchange(Exchange{exchangeTitle, scrapedName, scrapedPair, parsedVolume, parsedPrice, arrr33, updateMatcherResult})
+			volumePercentMatcher := func(n *html.Node) bool {
+				if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Span {
+					return scrape.Attr(n, "data-format-value") != ""
+				}
+				return false
+			}
+			var scrapedVolumePercent string
+			var volumePercentResult, _ = scrape.Find(resultz, volumePercentMatcher)
+			scrapedVolumePercent = scrape.Attr(volumePercentResult, "data-format-value")
+			var parsedVolumePercent, volumePercentParseError = strconv.ParseFloat(scrapedVolumePercent, 64)
+			if volumePercentParseError != nil {
+				fmt.Println("volumePercentParseError")
+				fmt.Println(volumePercentParseError)
+			}
+
+
+
+			/*
+			-----------------------------------------------------------------------------------
+			*/
+
+			fmt.Println(parsedVolumePercent)
+
+			InsertExchange(Exchange{exchangeTitle, scrapedName, scrapedPair, parsedVolume, parsedPrice, parsedVolumePercent, updateMatcherResult})
 
 		}
 		go func() {
