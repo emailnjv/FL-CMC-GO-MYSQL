@@ -230,10 +230,11 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 				fmt.Println(err3)
 				fmt.Println("&&&&&&&&&&&&&&&&")
 			}
-			var arrr4 string
-			arrr4 = strings.Join(arr[1:len(arr)-6], " ")
 
-			InsertExchange(Exchange{exchangeTitle, arrr4, arr[len(arr)-6], arrr13, arrr23, arrr33, updateMatcherResult})
+			var currName string
+			currName = strings.Join(arr[1:len(arr)-6], " ")
+
+			InsertExchange(Exchange{exchangeTitle, currName, arr[len(arr)-6], arrr13, arrr23, arrr33, updateMatcherResult})
 
 		}
 		go func() {
