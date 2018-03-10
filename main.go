@@ -289,9 +289,30 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 			*/
 
 
-			fmt.Printf(scrapedPair)
+			volumeMatcher := func(n *html.Node) bool {
+				if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Span {
+					return scrape.Attr(n, "class") == "volume"
+				}
+				return false
+			}
+			var scrapedVolume string
+			var volumeResult, _ = scrape.Find(resultz, volumeMatcher)
+			scrapedVolume = scrape.Attr(volumeResult, "data-usd")
+			var parsedVolume, volumeParseError = strconv.ParseFloat(scrapedVolume, 64)
+			if volumeParseError != nil {
+				fmt.Println("volumeParseError")
+				fmt.Println(volumeParseError)
+			}
 
-			InsertExchange(Exchange{exchangeTitle, scrapedName, scrapedPair, arrr13, parsedPrice, arrr33, updateMatcherResult})
+
+
+			/*
+			-----------------------------------------------------------------------------------
+			*/
+
+			fmt.Println(parsedVolume)
+
+			InsertExchange(Exchange{exchangeTitle, scrapedName, scrapedPair, parsedVolume, parsedPrice, arrr33, updateMatcherResult})
 
 		}
 		go func() {
