@@ -170,50 +170,9 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 
 		var wg1 sync.WaitGroup
 		wg1.Add(len(results))
-		// ********
 
 		for _, resultz := range results {
 			defer wg1.Done()
-
-			arr := strings.Split(scrape.Text(resultz), " ")
-
-			var updateMatcherResult bool
-			if arr[len(arr)-1] == "Recently" {
-				updateMatcherResult = true
-
-			}
-			if arr[len(arr)-1] != "Recently" {
-				updateMatcherResult = false
-				arr = arr[:len(arr)-2]
-
-			}
-
-			var arrr1 string
-			if arr[len(arr)-5] != "***" && arr[len(arr)-5] != "*" {
-				arrr1 = arr[len(arr)-5][1:]
-				if arrr1 == "***" {
-					arrr1 = arr[len(arr)-6][1:]
-				}
-			}
-			if arr[len(arr)-5] == "***" {
-				arrr1 = arr[len(arr)-4][1:]
-				if arrr1 == "***" {
-					arrr1 = arr[len(arr)-6][1:]
-				}
-			}
-			if arr[len(arr)-5] == "*" {
-				arrr1 = arr[len(arr)-4][1:]
-				if arrr1 == "***" {
-					arrr1 = arr[len(arr)-6][1:]
-				}
-			}
-
-			arrr12 := strings.Replace(arrr1, ",", "", -1)
-			var arrr13, err1 = strconv.ParseFloat(arrr12, 64)
-			if err1 != nil {
-				fmt.Println(err1, arrr13)
-			}
-
 
 
 
@@ -322,9 +281,29 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 			-----------------------------------------------------------------------------------
 			*/
 
-			fmt.Println(parsedVolumePercent)
 
-			InsertExchange(Exchange{exchangeTitle, scrapedName, scrapedPair, parsedVolume, parsedPrice, parsedVolumePercent, updateMatcherResult})
+			updatedMatcher := func(n *html.Node) bool {
+				if n.Parent.Parent.DataAtom == atom.Tbody && n != nil && scrape.Text(n) == "Recently"{
+					return n.DataAtom == atom.Td
+				}
+				return false
+			}
+			var scrapedUpdated bool
+			var updatedResult, updateError = scrape.Find(resultz, updatedMatcher)
+			if updateError {
+				fmt.Println(updatedResult)
+				scrapedUpdated = true
+			}
+
+
+
+			/*
+			-----------------------------------------------------------------------------------
+			*/
+
+			fmt.Println(scrapedUpdated)
+
+			InsertExchange(Exchange{exchangeTitle, scrapedName, scrapedPair, parsedVolume, parsedPrice, parsedVolumePercent, scrapedUpdated})
 
 		}
 		go func() {
