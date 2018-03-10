@@ -113,6 +113,7 @@ func respGen(urls ...string) <-chan *http.Response {
 			if err != nil {
 				panic(err)
 			}
+			time.Sleep(50)
 			out <- resp
 			wg.Done()
 		}(url)
@@ -174,13 +175,9 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 		for _, resultz := range results {
 			defer wg1.Done()
 
-
-
 			/*
-			-----------------------------------------------------------------------------------
+				-----------------------------------------------------------------------------------
 			*/
-
-
 
 			priceMatcher := func(n *html.Node) bool {
 				if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Span {
@@ -197,12 +194,9 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 				fmt.Println(priceParseError)
 			}
 
-
-
 			/*
-			-----------------------------------------------------------------------------------
+				-----------------------------------------------------------------------------------
 			*/
-
 
 			nameMatcher := func(n *html.Node) bool {
 				if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.A {
@@ -214,12 +208,9 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 			var nameResult, _ = scrape.Find(resultz, nameMatcher)
 			scrapedName = scrape.Text(nameResult)
 
-
-
 			/*
-			-----------------------------------------------------------------------------------
+				-----------------------------------------------------------------------------------
 			*/
-
 
 			pairMatcher := func(n *html.Node) bool {
 				if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.A {
@@ -231,34 +222,35 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 			var pairResult, _ = scrape.Find(resultz, pairMatcher)
 			scrapedPair = scrape.Text(pairResult)
 
-
-
 			/*
-			-----------------------------------------------------------------------------------
+				-----------------------------------------------------------------------------------
 			*/
 
-
 			volumeMatcher := func(n *html.Node) bool {
-				if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Span {
-					return scrape.Attr(n, "class") == "volume"
+				if n.Parent.DataAtom == atom.Td && n != nil && scrape.Attr(n, "class") == "volume" {
+					return n.DataAtom == atom.Span
 				}
 				return false
 			}
+			var finalVolume float64
 			var scrapedVolume string
 			var volumeResult, _ = scrape.Find(resultz, volumeMatcher)
 			scrapedVolume = scrape.Attr(volumeResult, "data-usd")
-			var parsedVolume, volumeParseError = strconv.ParseFloat(scrapedVolume, 64)
-			if volumeParseError != nil {
-				fmt.Println("volumeParseError")
-				fmt.Println(volumeParseError)
+			if scrapedVolume != "?" {
+				var parsedVolume, volumeParseError = strconv.ParseFloat(scrapedVolume, 64)
+				if volumeParseError != nil {
+					fmt.Println("volumeParseError")
+					finalVolume = parsedVolume
+				}
+			}
+			if scrapedVolume == "?" {
+				fmt.Println("Question Mark Detected CMC is Unaware of Volume")
+				finalVolume = 0.00
 			}
 
-
-
 			/*
-			-----------------------------------------------------------------------------------
+				-----------------------------------------------------------------------------------
 			*/
-
 
 			volumePercentMatcher := func(n *html.Node) bool {
 				if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Span {
@@ -275,35 +267,27 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 				fmt.Println(volumePercentParseError)
 			}
 
-
-
 			/*
-			-----------------------------------------------------------------------------------
+				-----------------------------------------------------------------------------------
 			*/
 
-
 			updatedMatcher := func(n *html.Node) bool {
-				if n.Parent.Parent.DataAtom == atom.Tbody && n != nil && scrape.Text(n) == "Recently"{
+				if n.Parent.Parent.DataAtom == atom.Tbody && n != nil && scrape.Text(n) == "Recently" {
 					return n.DataAtom == atom.Td
 				}
 				return false
 			}
 			var scrapedUpdated bool
-			var updatedResult, updateError = scrape.Find(resultz, updatedMatcher)
+			var _, updateError = scrape.Find(resultz, updatedMatcher)
 			if updateError {
-				fmt.Println(updatedResult)
 				scrapedUpdated = true
 			}
 
-
-
 			/*
-			-----------------------------------------------------------------------------------
+				-----------------------------------------------------------------------------------
 			*/
 
-			fmt.Println(scrapedUpdated)
-
-			InsertExchange(Exchange{exchangeTitle, scrapedName, scrapedPair, parsedVolume, parsedPrice, parsedVolumePercent, scrapedUpdated})
+			InsertExchange(Exchange{exchangeTitle, scrapedName, scrapedPair, finalVolume, parsedPrice, parsedVolumePercent, scrapedUpdated})
 
 		}
 		go func() {
