@@ -271,9 +271,27 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 			-----------------------------------------------------------------------------------
 			*/
 
-			fmt.Printf(scrapedName)
 
-			InsertExchange(Exchange{exchangeTitle, scrapedName, arr[len(arr)-6], arrr13, parsedPrice, arrr33, updateMatcherResult})
+			pairMatcher := func(n *html.Node) bool {
+				if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.A {
+					return scrape.Attr(n, "class") != "market-name"
+				}
+				return false
+			}
+			var scrapedPair string
+			var pairResult, _ = scrape.Find(resultz, pairMatcher)
+			scrapedPair = scrape.Text(pairResult)
+
+
+
+			/*
+			-----------------------------------------------------------------------------------
+			*/
+
+
+			fmt.Printf(scrapedPair)
+
+			InsertExchange(Exchange{exchangeTitle, scrapedName, scrapedPair, arrr13, parsedPrice, arrr33, updateMatcherResult})
 
 		}
 		go func() {
