@@ -175,64 +175,73 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 		for _, resultz := range results {
 			defer wg1.Done()
 
-			arr := strings.Split(scrape.Text(resultz), " ")
+			//arr := strings.Split(scrape.Text(resultz), " ")
+			//
+			//var updateMatcherResult bool
+			//if arr[len(arr)-1] == "Recently" {
+			//	updateMatcherResult = true
+			//
+			//}
+			//if arr[len(arr)-1] != "Recently" {
+			//	updateMatcherResult = false
+			//	arr = arr[:len(arr)-2]
+			//
+			//}
+			//
+			//var arrr1 string
+			//if arr[len(arr)-5] != "***" && arr[len(arr)-5] != "*" {
+			//	arrr1 = arr[len(arr)-5][1:]
+			//	if arrr1 == "***" {
+			//		arrr1 = arr[len(arr)-6][1:]
+			//	}
+			//}
+			//if arr[len(arr)-5] == "***" {
+			//	arrr1 = arr[len(arr)-4][1:]
+			//	if arrr1 == "***" {
+			//		arrr1 = arr[len(arr)-6][1:]
+			//	}
+			//}
+			//if arr[len(arr)-5] == "*" {
+			//	arrr1 = arr[len(arr)-4][1:]
+			//	if arrr1 == "***" {
+			//		arrr1 = arr[len(arr)-6][1:]
+			//	}
+			//}
+			//
+			//arrr12 := strings.Replace(arrr1, ",", "", -1)
+			//var arrr13, err1 = strconv.ParseFloat(arrr12, 64)
+			//if err1 != nil {
+			//	fmt.Println(err1, arrr13)
+			//}
+			//
+			//arrr2 := arr[len(arr)-4][1:]
+			//arrr22 := strings.Replace(arrr2, ",", "", -1)
+			//var arrr23, err2 = strconv.ParseFloat(arrr22, 64)
+			//if err2 != nil {
+			//	fmt.Println(err2)
+			//	fmt.Println("*********************")
+			//
+			//}
+			//
+			//arr3 := arr[len(arr)-3]
+			//arr32 := strings.Replace(arr3, ",", "", -1)
+			//var arrr33, err3 = strconv.ParseFloat(arr32, 64)
+			//if err3 != nil {
+			//	fmt.Println(err3)
+			//	fmt.Println("&&&&&&&&&&&&&&&&")
+			//}
+			//
+			//var currName string
+			//currName = strings.Join(arr[1:len(arr)-6], " ")
 
-			var updateMatcherResult bool
-			if arr[len(arr)-1] == "Recently" {
-				updateMatcherResult = true
-
-			}
-			if arr[len(arr)-1] != "Recently" {
-				updateMatcherResult = false
-				arr = arr[:len(arr)-2]
-
-			}
-
-			var arrr1 string
-			if arr[len(arr)-5] != "***" && arr[len(arr)-5] != "*" {
-				arrr1 = arr[len(arr)-5][1:]
-				if arrr1 == "***" {
-					arrr1 = arr[len(arr)-6][1:]
+			currencyMatcher := func(n *html.Node) bool {
+				if n.Parent.Parent.DataAtom == atom.Tbody && n != nil && n.Parent.DataAtom == atom.Span {
+					return scrape.Attr(n, "class") == "price"
 				}
+				return false
 			}
-			if arr[len(arr)-5] == "***" {
-				arrr1 = arr[len(arr)-4][1:]
-				if arrr1 == "***" {
-					arrr1 = arr[len(arr)-6][1:]
-				}
-			}
-			if arr[len(arr)-5] == "*" {
-				arrr1 = arr[len(arr)-4][1:]
-				if arrr1 == "***" {
-					arrr1 = arr[len(arr)-6][1:]
-				}
-			}
-
-			arrr12 := strings.Replace(arrr1, ",", "", -1)
-			var arrr13, err1 = strconv.ParseFloat(arrr12, 64)
-			if err1 != nil {
-				fmt.Println(err1, arrr13)
-			}
-
-			arrr2 := arr[len(arr)-4][1:]
-			arrr22 := strings.Replace(arrr2, ",", "", -1)
-			var arrr23, err2 = strconv.ParseFloat(arrr22, 64)
-			if err2 != nil {
-				fmt.Println(err2)
-				fmt.Println("*********************")
-
-			}
-
-			arr3 := arr[len(arr)-3]
-			arr32 := strings.Replace(arr3, ",", "", -1)
-			var arrr33, err3 = strconv.ParseFloat(arr32, 64)
-			if err3 != nil {
-				fmt.Println(err3)
-				fmt.Println("&&&&&&&&&&&&&&&&")
-			}
-
-			var currName string
-			currName = strings.Join(arr[1:len(arr)-6], " ")
+			var cur, _ = scrape.Find(root, exchangeMatcher)
+			exchangeTitle := scrape.Text(headResults)
 
 			InsertExchange(Exchange{exchangeTitle, currName, arr[len(arr)-6], arrr13, arrr23, arrr33, updateMatcherResult})
 
