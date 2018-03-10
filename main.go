@@ -214,14 +214,7 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 				fmt.Println(err1, arrr13)
 			}
 
-			arrr2 := arr[len(arr)-4][1:]
-			arrr22 := strings.Replace(arrr2, ",", "", -1)
-			var arrr23, err2 = strconv.ParseFloat(arrr22, 64)
-			if err2 != nil {
-				fmt.Println(err2)
-				fmt.Println("*********************")
 
-			}
 
 			arr3 := arr[len(arr)-3]
 			arr32 := strings.Replace(arr3, ",", "", -1)
@@ -230,9 +223,6 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 				fmt.Println(err3)
 				fmt.Println("&&&&&&&&&&&&&&&&")
 			}
-
-			var currName string
-			currName = strings.Join(arr[1:len(arr)-6], " ")
 
 
 
@@ -252,6 +242,11 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 			var scrapedPrice string
 			var priceResult, _ = scrape.Find(resultz, priceMatcher)
 			scrapedPrice = scrape.Attr(priceResult, "data-usd")
+			var parsedPrice, priceParseError = strconv.ParseFloat(scrapedPrice, 64)
+			if priceParseError != nil {
+				fmt.Println("priceParseError")
+				fmt.Println(priceParseError)
+			}
 
 
 
@@ -261,14 +256,14 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 
 
 			nameMatcher := func(n *html.Node) bool {
-				if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Span {
-					return scrape.Attr(n, "class") == "price"
+				if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.A {
+					return scrape.Attr(n, "class") == "market-name"
 				}
 				return false
 			}
-			var scrapedPrice string
-			var priceResult, _ = scrape.Find(resultz, priceMatcher)
-			scrapedPrice = scrape.Attr(priceResult, "data-usd")
+			var scrapedName string
+			var nameResult, _ = scrape.Find(resultz, nameMatcher)
+			scrapedName = scrape.Text(nameResult)
 
 
 
@@ -276,9 +271,9 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 			-----------------------------------------------------------------------------------
 			*/
 
-			fmt.Printf(scrapedPrice)
+			fmt.Printf(scrapedName)
 
-			InsertExchange(Exchange{exchangeTitle, currName, arr[len(arr)-6], arrr13, arrr23, arrr33, updateMatcherResult})
+			InsertExchange(Exchange{exchangeTitle, scrapedName, arr[len(arr)-6], arrr13, parsedPrice, arrr33, updateMatcherResult})
 
 		}
 		go func() {
