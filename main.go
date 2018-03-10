@@ -20,7 +20,6 @@ import (
 
 var (
 
-// resultList [] AmazonResult
 
 )
 
@@ -82,18 +81,19 @@ func InsertCurrency(curr Currency) {
 	db := dbConn()
 	name := curr.Name
 	symbol := curr.Symbol
-	VolumeCur := curr.Volume
-	Price := curr.Price
-	CirculatingSupply := curr.CirculatingSupply
+	marketCap := curr.MarketCap
+	price := curr.Price
+	circulatingSupply := curr.CirculatingSupply
+	volume := curr.Volume
 	oneHour := curr.oneHour
 	oneDay := curr.oneDay
 	oneWeek := curr.oneWeek
 
-	insForm, err := db.Prepare("INSERT INTO all_currencies(TimeScraped, Currency, Symbol, Volume, Price, CirculatingSupply, oneHour, oneDay,oneWeek) VALUES(?,?,?,?,?,?,?,?,?)")
+	insForm, err := db.Prepare("INSERT INTO all_currencies(TimeScraped, Currency, Symbol, MarketCap, Volume, Price, CirculatingSupply, OneHour, OneDay,OneWeek) VALUES(?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		panic(err.Error())
 	}
-	insForm.Exec(time.Now(), name, symbol, VolumeCur, Price, CirculatingSupply, oneHour, oneDay, oneWeek)
+	insForm.Exec(time.Now(), name, symbol, marketCap, price, circulatingSupply, volume, oneHour, oneDay, oneWeek)
 
 	defer db.Close()
 }
@@ -186,7 +186,7 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 			}
 			var scrapedPrice string
 			var priceResult, _ = scrape.Find(resultz, priceMatcher)
-			scrapedPrice = scrape.Attr(priceResult, "data-usd")
+			scrapedPrice = scrape.Attr(priceResult, "data-btc")
 			var parsedPrice, priceParseError = strconv.ParseFloat(scrapedPrice, 64)
 			if priceParseError != nil {
 				fmt.Println("priceParseError")
@@ -333,7 +333,7 @@ func resultNodeCurrencyGen(in <-chan *html.Node) bool {
 			}
 			var scrapedPrice string
 			var priceResult, _ = scrape.Find(resultz, priceMatcher)
-			scrapedPrice = scrape.Attr(priceResult, "data-usd")
+			scrapedPrice = scrape.Attr(priceResult, "data-btc")
 			var parsedPrice, priceParseError = strconv.ParseFloat(scrapedPrice, 64)
 			if priceParseError != nil {
 				fmt.Println("priceParseError")
@@ -358,12 +358,6 @@ func resultNodeCurrencyGen(in <-chan *html.Node) bool {
 				-----------------------------------------------------------------------------------
 			*/
 
-			// symbolMatcher := func(n *html.Node) bool {
-			// 	if n.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Td {
-			// 		return scrape.Attr(n, "class") != "col-symbol"
-			// 	}
-			// 	return false
-			// }
 			var scrapedSymbol string
 			var symbolResult, _ = scrape.Find(resultz, scrape.ByClass("col-symbol"))
 			scrapedSymbol = scrape.Text(symbolResult)
@@ -372,95 +366,118 @@ func resultNodeCurrencyGen(in <-chan *html.Node) bool {
 				-----------------------------------------------------------------------------------
 			*/
 
-			// marketCapMatcher := func(n *html.Node) bool {
-			// 	if n.Parent.DataAtom == atom.Tr && n != nil && scrape.Attr(n, "class") == "market-cap" {
-			// 		if n.DataAtom == atom.Td {
-			// 			return true
-			// 		}
-			// 	}
-			// 	return false
-			// }
-			var finalMarketCap float64
 			var scrapedMarketCap string
 			var marketCapResult, _ = scrape.Find(resultz, scrape.ByClass("market-cap"))
-			scrapedMarketCap = scrape.Attr(marketCapResult, "data-usd")
-			if scrapedMarketCap != "?" {
-				// withoutDollarSign := scrapedVolume[1:]
-				// withoutCommas := strings.Replace(withoutDollarSign, ",", "", -1)
-				var parsedMarketCap, parsedMarketCapError = strconv.ParseFloat(scrapedMarketCap, 64)
-				if parsedMarketCapError != nil {
-					fmt.Println("volumeParseError")
-				}
-				finalMarketCap = parsedMarketCap
-
+			scrapedMarketCap = scrape.Attr(marketCapResult, "data-btc")
+			var parsedMarketCap, parsedMarketCapError = strconv.ParseFloat(scrapedMarketCap, 64)
+			if parsedMarketCapError != nil {
+				fmt.Println("parsedMarketCapError")
 			}
 
 			/*
 				-----------------------------------------------------------------------------------
 			*/
 
-			// volumePercentMatcher := func(n *html.Node) bool {
-			// 	if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Span {
-			// 		return scrape.Attr(n, "data-format-value") != ""
-			// 	}
-			// 	return false
-			// }
-			// var scrapedVolumePercent string
-			// var volumePercentResult, _ = scrape.Find(resultz, volumePercentMatcher)
-			// scrapedVolumePercent = scrape.Attr(volumePercentResult, "data-format-value")
-			// var parsedVolumePercent, volumePercentParseError = strconv.ParseFloat(scrapedVolumePercent, 64)
-			// if volumePercentParseError != nil {
-			// 	fmt.Println("volumePercentParseError")
-			// 	fmt.Println(volumePercentParseError)
-			// }
+			var scrapedCirculatingSupply string
+			var circulatingSupplyResult, _ = scrape.Find(resultz, scrape.ByClass("circulating-supply"))
+			scrapedCirculatingSupply = scrape.Attr(circulatingSupplyResult, "data-sort")
+			var parsedCirculatingSupply, CirculatingSupplyParseError = strconv.ParseFloat(scrapedCirculatingSupply, 64)
+			if CirculatingSupplyParseError != nil {
+				fmt.Println("CirculatingSupplyParseError")
+				fmt.Println(CirculatingSupplyParseError)
+			}
 
 			/*
 				-----------------------------------------------------------------------------------
 			*/
 
-			// circulatingSupplyMatcher := func(n *html.Node) bool {
-			// 	if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Span {
-			// 		return scrape.Attr(n, "data-format-value") != ""
-			// 	}
-			// 	return false
-			// }
-			// var scrapedCirculatingSupply string
-			// var circulatingSupplyResult, _ = scrape.Find(resultz, circulatingSupplyMatcher)
-			// scrapedCirculatingSupply = scrape.Attr(volumePercentResult, "data-format-value")
-			// var parsedVolumePercent, volumePercentParseError = strconv.ParseFloat(scrapedVolumePercent, 64)
-			// if volumePercentParseError != nil {
-			// 	fmt.Println("volumePercentParseError")
-			// 	fmt.Println(volumePercentParseError)
-			// }
+			var scrapedVolume string
+			var volumeResult, _ = scrape.Find(resultz, scrape.ByClass("volume"))
+			scrapedVolume = scrape.Attr(volumeResult, "data-btc")
+			var parsedVolume, volumeParseError = strconv.ParseFloat(scrapedVolume, 64)
+			if CirculatingSupplyParseError != nil {
+				fmt.Println("volumeParseError")
+				fmt.Println(volumeParseError)
+			}
 
 			/*
 				-----------------------------------------------------------------------------------
 			*/
 
-			// updatedMatcher := func(n *html.Node) bool {
-			// 	if n.Parent.Parent.DataAtom == atom.Tbody && n != nil && scrape.Text(n) == "Recently" {
-			// 		return n.DataAtom == atom.Td
-			// 	}
-			// 	return false
-			// }
-			// var scrapedUpdated bool
-			// var _, updateError = scrape.Find(resultz, updatedMatcher)
-			// if updateError {
-			// 	scrapedUpdated = true
-			// }
+			var finalOneH float64
+			oneHMatcher := func(n *html.Node) bool {
+				if n.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Td {
+					return scrape.Attr(n, "data-timespan") == "1h"
+				}
+				return false
+			}
+			var scrapedOneH string
+			var oneHResult, oneHResultNF = scrape.Find(resultz, oneHMatcher)
+			if oneHResultNF == true {
+				scrapedOneH = scrape.Attr(oneHResult, "data-sort")
+				var parsedOneH, oneHParseError = strconv.ParseFloat(scrapedOneH, 64)
+				if oneHParseError != nil {
+					fmt.Println("oneHParseError")
+					fmt.Println(oneHParseError)
+				}
+				finalOneH = parsedOneH
+			}
 
 			/*
 				-----------------------------------------------------------------------------------
 			*/
 
-			fmt.Println(scrapedName)
-			fmt.Println(scrapedSymbol)
-			fmt.Println(finalMarketCap)
-			fmt.Println(parsedPrice)
+			var finalOneM float64
+			oneMMatcher := func(n *html.Node) bool {
+				if n.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Td {
+					return scrape.Attr(n, "data-timespan") == "24h"
+				}
+				return false
+			}
+			var scrapedOneM string
+			var oneMResult, oneMResultNF = scrape.Find(resultz, oneMMatcher)
+			if oneMResultNF == true {
 
-			// InsertCurrency(Currency{scrapedName, scrapedSymbol, finalMarketCap, parsedPrice, parsupply, volS, oned, oneh, onew})
+				scrapedOneM = scrape.Attr(oneMResult, "data-percentusd")
+				var parsedOneM, oneMParseError = strconv.ParseFloat(scrapedOneM, 64)
+				if oneMParseError != nil {
+					fmt.Println("oneMParseError")
+					fmt.Println(oneMParseError)
+					finalOneM = parsedOneM
+				}
+			}
+
+			/*
+				-----------------------------------------------------------------------------------
+			*/
+
+			var finalOneW float64
+			oneWMatcher := func(n *html.Node) bool {
+				if n.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Td {
+					return scrape.Attr(n, "data-timespan") == "1h"
+				}
+				return false
+			}
+			var scrapedOneW string
+			var oneWResult, oneWResultNF = scrape.Find(resultz, oneWMatcher)
+			if oneWResultNF == true {
+				scrapedOneW = scrape.Attr(oneWResult, "data-percentusd")
+				var parsedOneW, oneWParseError = strconv.ParseFloat(scrapedOneW, 64)
+				if oneWParseError != nil {
+					fmt.Println("oneWParseError")
+					fmt.Println(oneWParseError)
+				}
+				finalOneW = parsedOneW
+			}
+
+			/*
+				-----------------------------------------------------------------------------------
+			*/
+
+			InsertCurrency(Currency{scrapedName, scrapedSymbol, parsedMarketCap, parsedPrice, parsedCirculatingSupply, parsedVolume, finalOneH, finalOneM, finalOneW})
 
 		}
+
 		go func() {
 			wg1.Wait()
 			wg.Done()
@@ -483,7 +500,7 @@ func getUrls() {
 	}
 	json.Unmarshal(raw, &urlArr)
 
-	// resultNodeExchangeGen(rootGen(respGen(urlArr.Urls...)))
+	resultNodeExchangeGen(rootGen(respGen(urlArr.Urls...)))
 	resultNodeCurrencyGen(rootGen(respGen("https://coinmarketcap.com/all/views/all/")))
 	// jsonData, err := json.Marshal(resultList)
 
