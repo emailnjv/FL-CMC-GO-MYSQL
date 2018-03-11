@@ -51,7 +51,6 @@ type UrlArrStruct struct {
 }
 
 func dbConn() (db *sql.DB) {
-	//db, err := sql.Open("mysql", "lcgpartners:Acr0p0l1s@tcp(coinmarketcap.c517fc0kol1n.eu-west-2.rds.amazonaws.com:3306)/coin_market_cap")
 	db, err := sql.Open("mysql", "root:toor@/coin_market_cap")
 	if err != nil {
 		fmt.Println(err)
@@ -88,48 +87,103 @@ func InsertCurrency(curr Currency) {
 	oneDay := curr.PercentChange24h
 	oneWeek := curr.PercentChange7d
 
-	var parsedMarketCap, parsedMarketCapError = strconv.ParseFloat(marketCap, 64)
-	if parsedMarketCapError != nil {
-		fmt.Println("parsedMarketCapError")
+	var parsedMarketCap float64
+	var parsedMarketCapError error
+	if marketCap != "" {
+		parsedMarketCap, parsedMarketCapError = strconv.ParseFloat(marketCap, 64)
+		if parsedMarketCapError != nil {
+			fmt.Println("parsedMarketCapError")
+		}
 	}
 
-	var parsedVolume, parsedVolumeError = strconv.ParseFloat(volume, 64)
-	if parsedVolumeError != nil {
-		fmt.Println("parsedVolumeError")
+	if marketCap == "" {
+		fmt.Println(curr, "MARKET Data is VACANT from Coin Market Cap")
 	}
 
-	var parsedPrice, parsedPriceError = strconv.ParseFloat(price, 64)
-	if parsedPriceError != nil {
-		fmt.Println("parsedPriceError")
+	var parsedVolume float64
+	var parsedVolumeError error
+	if volume != "" {
+		parsedVolume, parsedVolumeError = strconv.ParseFloat(volume, 64)
+		if parsedVolumeError != nil {
+			fmt.Println("parsedVolumeError")
+		}
+	}
+	if volume == "" {
+		fmt.Println(curr, "VOLUME Data is VACANT from Coin Market Cap")
 	}
 
-	var parsedCirculatingSupply, parsedCirculatingSupplyError = strconv.ParseFloat(circulatingSupply, 64)
-	if parsedCirculatingSupplyError != nil {
-		fmt.Println("parsedCirculatingSupplyError")
+	var parsedPrice float64
+	var parsedPriceError error
+	if price != "" {
+		parsedPrice, parsedPriceError = strconv.ParseFloat(price, 64)
+		if parsedPriceError != nil {
+			fmt.Println("parsedPriceError")
+		}
+	}
+	if price == "" {
+		parsedPrice, parsedPriceError = strconv.ParseFloat(price, 64)
+		fmt.Println(curr, "PRICE Data is VACANT from Coin Market Cap")
 	}
 
-	var parsedOneHour, parsedOneHourError = strconv.ParseFloat(oneHour, 64)
-	if parsedOneHourError != nil {
-		fmt.Println("parsedOneHourError")
+	var parsedCirculatingSupply float64
+	var parsedCirculatingSupplyError error
+	if circulatingSupply != "" {
+		parsedCirculatingSupply, parsedCirculatingSupplyError = strconv.ParseFloat(circulatingSupply, 64)
+		if parsedCirculatingSupplyError != nil {
+			fmt.Println("parsedCirculatingSupplyError")
+		}
+	}
+	if circulatingSupply == "" {
+		fmt.Println(curr, "CIRCULATING SUPPLY Data is VACANT from Coin Market Cap")
 	}
 
-	var parsedOneDay, parsedOneDayError = strconv.ParseFloat(oneDay, 64)
-	if parsedOneDayError != nil {
-		fmt.Println("parsedOneDayError")
+	var parsedOneHour float64
+	var parsedOneHourError error
+	if oneHour != "" {
+		parsedOneHour, parsedOneHourError = strconv.ParseFloat(oneHour, 64)
+		if parsedOneHourError != nil {
+			fmt.Println("parsedOneHourError")
+		}
+	}
+	if oneHour == "" {
+		fmt.Println(curr, "ONE HOUR Data is VACANT from Coin Market Cap")
 	}
 
-	var parsedOneWeek, parsedOneWeekError = strconv.ParseFloat(oneWeek, 64)
-	if parsedOneWeekError != nil {
-		fmt.Println("parsedOneWeekError")
+	var parsedOneDay float64
+	var parsedOneDayError error
+	if oneDay != "" {
+		parsedOneDay, parsedOneDayError = strconv.ParseFloat(oneDay, 64)
+		if parsedOneDayError != nil {
+			fmt.Println("parsedOneDayError")
+		}
+	}
+
+	if oneDay == "" {
+		fmt.Println(curr, "ONE DAY Data is VACANT from Coin Market Cap")
+	}
+
+	var parsedOneWeek float64
+	var parsedOneWeekError error
+	if oneWeek != "" {
+		parsedOneWeek, parsedOneWeekError = strconv.ParseFloat(oneWeek, 64)
+		if parsedOneWeekError != nil {
+			fmt.Println("parsedOneWeekError")
+		}
+	}
+
+	if oneWeek == "" {
+		fmt.Println(curr, "ONE WEEK Data is VACANT from Coin Market Cap")
 	}
 
 	insForm, err := db.Prepare("INSERT INTO all_currencies(TimeScraped, Currency, Symbol, MarketCap, Volume, Price, CirculatingSupply, OneHour, OneDay,OneWeek) VALUES(?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		panic(err.Error())
 	}
-	insForm.Exec(time.Now(), name, symbol, parsedMarketCap, parsedVolume, parsedPrice, parsedCirculatingSupply, parsedOneHour, parsedOneDay, parsedOneWeek)
+	defer func() {
+		insForm.Exec(time.Now(), name, symbol, parsedMarketCap, parsedVolume, parsedPrice, parsedCirculatingSupply, parsedOneHour, parsedOneDay, parsedOneWeek)
+		db.Close()
+	}()
 
-	defer db.Close()
 }
 
 func respGen(urls ...string) <-chan *http.Response {
@@ -351,6 +405,9 @@ func resultNodeCurrencyGen(in <-chan *http.Response) bool {
 		}
 
 		for _, indCurrency := range *apiResponse {
+			if indCurrency.MarketCapUsd == "" {
+				fmt.Println(indCurrency)
+			}
 
 			InsertCurrency(Currency{indCurrency.Id, indCurrency.Name, indCurrency.Symbol, indCurrency.Rank, indCurrency.PriceUsd, indCurrency.PriceBtc, indCurrency.Twenty4hVolumeUsd, indCurrency.MarketCapUsd, indCurrency.AvailableSupply, indCurrency.TotalSupply, indCurrency.MaxSupply, indCurrency.PercentChange1h, indCurrency.PercentChange24h, indCurrency.PercentChange7d, indCurrency.LastUpdated})
 
