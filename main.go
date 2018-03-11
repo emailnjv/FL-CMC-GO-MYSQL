@@ -18,21 +18,22 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-var (
-
-
-)
-
 type Currency struct {
-	Name              string
-	Symbol            string
-	MarketCap         float64
-	Price             float64
-	CirculatingSupply float64
-	Volume            float64
-	oneHour           float64
-	oneDay            float64
-	oneWeek           float64
+	Id                string `json:"id"`
+	Name              string `json:"name"`
+	Symbol            string `json:"symbol"`
+	Rank              string `json:"rank"`
+	PriceUsd          string `json:"price_usd"`
+	PriceBtc          string `json:"price_btc"`
+	Twenty4hVolumeUsd string `json:"24h_volume_usd"`
+	MarketCapUsd      string `json:"market_cap_usd"`
+	AvailableSupply   string `json:"available_supply"`
+	TotalSupply       string `json:"total_supply"`
+	MaxSupply         string `json:"max_supply"`
+	PercentChange1h   string `json:"percent_change_1h"`
+	PercentChange24h  string `json:"percent_change_24h"`
+	PercentChange7d   string `json:"percent_change_7d"`
+	LastUpdated       string `json:"last_updated"`
 }
 
 type Exchange struct {
@@ -50,12 +51,10 @@ type UrlArrStruct struct {
 }
 
 func dbConn() (db *sql.DB) {
-	dbDriver := "mysql"
-	dbUser := "root"
-	dbPass := "toor"
-	dbName := "coin_market_cap"
-	db, err := sql.Open(dbDriver, dbUser+":"+dbPass+"@/"+dbName)
+	//db, err := sql.Open("mysql", "lcgpartners:Acr0p0l1s@tcp(coinmarketcap.c517fc0kol1n.eu-west-2.rds.amazonaws.com:3306)/coin_market_cap")
+	db, err := sql.Open("mysql", "root:toor@/coin_market_cap")
 	if err != nil {
+		fmt.Println(err)
 		panic(err.Error())
 	}
 	return db
@@ -74,26 +73,61 @@ func InsertExchange(exch Exchange) {
 		panic(err.Error())
 	}
 	insForm.Exec(time.Now(), exch.ExchangeName, Currency, Pair, VolumeCur, Price, VolumePercent, UpdatedRecently)
-
+	fmt.Println("Inserted: ", exch.ExchangeName)
 	defer db.Close()
 }
 func InsertCurrency(curr Currency) {
 	db := dbConn()
 	name := curr.Name
 	symbol := curr.Symbol
-	marketCap := curr.MarketCap
-	price := curr.Price
-	circulatingSupply := curr.CirculatingSupply
-	volume := curr.Volume
-	oneHour := curr.oneHour
-	oneDay := curr.oneDay
-	oneWeek := curr.oneWeek
+	marketCap := curr.MarketCapUsd
+	price := curr.PriceUsd
+	circulatingSupply := curr.TotalSupply
+	volume := curr.Twenty4hVolumeUsd
+	oneHour := curr.PercentChange1h
+	oneDay := curr.PercentChange24h
+	oneWeek := curr.PercentChange7d
+
+	var parsedMarketCap, parsedMarketCapError = strconv.ParseFloat(marketCap, 64)
+	if parsedMarketCapError != nil {
+		fmt.Println("parsedMarketCapError")
+	}
+
+	var parsedVolume, parsedVolumeError = strconv.ParseFloat(volume, 64)
+	if parsedVolumeError != nil {
+		fmt.Println("parsedVolumeError")
+	}
+
+	var parsedPrice, parsedPriceError = strconv.ParseFloat(price, 64)
+	if parsedPriceError != nil {
+		fmt.Println("parsedPriceError")
+	}
+
+	var parsedCirculatingSupply, parsedCirculatingSupplyError = strconv.ParseFloat(circulatingSupply, 64)
+	if parsedCirculatingSupplyError != nil {
+		fmt.Println("parsedCirculatingSupplyError")
+	}
+
+	var parsedOneHour, parsedOneHourError = strconv.ParseFloat(oneHour, 64)
+	if parsedOneHourError != nil {
+		fmt.Println("parsedOneHourError")
+	}
+
+	var parsedOneDay, parsedOneDayError = strconv.ParseFloat(oneDay, 64)
+	if parsedOneDayError != nil {
+		fmt.Println("parsedOneDayError")
+	}
+
+	var parsedOneWeek, parsedOneWeekError = strconv.ParseFloat(oneWeek, 64)
+	if parsedOneWeekError != nil {
+		fmt.Println("parsedOneWeekError")
+	}
 
 	insForm, err := db.Prepare("INSERT INTO all_currencies(TimeScraped, Currency, Symbol, MarketCap, Volume, Price, CirculatingSupply, OneHour, OneDay,OneWeek) VALUES(?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		panic(err.Error())
 	}
-	insForm.Exec(time.Now(), name, symbol, marketCap, price, circulatingSupply, volume, oneHour, oneDay, oneWeek)
+	insForm.Exec(time.Now(), name, symbol, parsedMarketCap, parsedVolume, parsedPrice, parsedCirculatingSupply, parsedOneHour, parsedOneDay, parsedOneWeek)
 
 	defer db.Close()
 }
@@ -109,6 +143,7 @@ func respGen(urls ...string) <-chan *http.Response {
 				panic(err)
 			}
 			req.Header.Set("user-agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0")
+			time.Sleep(3 * time.Second)
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				panic(err)
@@ -168,11 +203,11 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 		var headResults, _ = scrape.Find(root, exchangeMatcher)
 		exchangeTitle := scrape.Text(headResults)
 
-		var wg1 sync.WaitGroup
-		wg1.Add(len(results))
-
+		var wg2 sync.WaitGroup
+		wg2.Add(len(results))
+		// ********
 		for _, resultz := range results {
-			defer wg1.Done()
+			defer wg2.Done()
 
 			/*
 				-----------------------------------------------------------------------------------
@@ -186,7 +221,7 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 			}
 			var scrapedPrice string
 			var priceResult, _ = scrape.Find(resultz, priceMatcher)
-			scrapedPrice = scrape.Attr(priceResult, "data-btc")
+			scrapedPrice = scrape.Attr(priceResult, "data-usd")
 			var parsedPrice, priceParseError = strconv.ParseFloat(scrapedPrice, 64)
 			if priceParseError != nil {
 				fmt.Println("priceParseError")
@@ -289,7 +324,7 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 
 		}
 		go func() {
-			wg1.Wait()
+			wg2.Wait()
 			wg.Done()
 		}()
 
@@ -301,197 +336,33 @@ func resultNodeExchangeGen(in <-chan *html.Node) bool {
 	return true
 
 }
-func resultNodeCurrencyGen(in <-chan *html.Node) bool {
-	var wg sync.WaitGroup
-	for root := range in {
-		wg.Add(1)
+func resultNodeCurrencyGen(in <-chan *http.Response) bool {
+	//var wgCurrency sync.WaitGroup
+	for apiResponse := range in {
 
-		rowMatcherQ := func(n *html.Node) bool {
-			if n.DataAtom == atom.Tr && n != nil && scrape.Attr(n.Parent.Parent, "id") == "currencies-all" {
-				return n.Parent.DataAtom == atom.Tbody
-			}
-			return false
+		body, apirReadErr := ioutil.ReadAll(apiResponse.Body)
+		if apirReadErr != nil {
+			fmt.Println(apirReadErr.Error())
+		}
+		apiResponse := new([]Currency)
+		jsonErr := json.Unmarshal(body, &apiResponse)
+		if jsonErr != nil {
+			fmt.Println("whoops:", jsonErr)
 		}
 
-		var results = scrape.FindAll(root, rowMatcherQ)
+		for _, indCurrency := range *apiResponse {
 
-		var wg1 sync.WaitGroup
-		wg1.Add(len(results))
-		// ********
-		for _, resultz := range results {
-			defer wg1.Done()
-
-			/*
-				-----------------------------------------------------------------------------------
-			*/
-
-			priceMatcher := func(n *html.Node) bool {
-				if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.A {
-					return scrape.Attr(n, "class") == "price"
-				}
-				return false
-			}
-			var scrapedPrice string
-			var priceResult, _ = scrape.Find(resultz, priceMatcher)
-			scrapedPrice = scrape.Attr(priceResult, "data-btc")
-			var parsedPrice, priceParseError = strconv.ParseFloat(scrapedPrice, 64)
-			if priceParseError != nil {
-				fmt.Println("priceParseError")
-				fmt.Println(priceParseError)
-			}
-
-			/*
-				-----------------------------------------------------------------------------------
-			*/
-
-			nameMatcher := func(n *html.Node) bool {
-				if n.Parent.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.A {
-					return scrape.Attr(n, "class") == "currency-name-container"
-				}
-				return false
-			}
-			var scrapedName string
-			var nameResult, _ = scrape.Find(resultz, nameMatcher)
-			scrapedName = scrape.Text(nameResult)
-
-			/*
-				-----------------------------------------------------------------------------------
-			*/
-
-			var scrapedSymbol string
-			var symbolResult, _ = scrape.Find(resultz, scrape.ByClass("col-symbol"))
-			scrapedSymbol = scrape.Text(symbolResult)
-
-			/*
-				-----------------------------------------------------------------------------------
-			*/
-
-			var scrapedMarketCap string
-			var marketCapResult, _ = scrape.Find(resultz, scrape.ByClass("market-cap"))
-			scrapedMarketCap = scrape.Attr(marketCapResult, "data-btc")
-			var parsedMarketCap, parsedMarketCapError = strconv.ParseFloat(scrapedMarketCap, 64)
-			if parsedMarketCapError != nil {
-				fmt.Println("parsedMarketCapError")
-			}
-
-			/*
-				-----------------------------------------------------------------------------------
-			*/
-
-			var scrapedCirculatingSupply string
-			var circulatingSupplyResult, _ = scrape.Find(resultz, scrape.ByClass("circulating-supply"))
-			scrapedCirculatingSupply = scrape.Attr(circulatingSupplyResult, "data-sort")
-			var parsedCirculatingSupply, CirculatingSupplyParseError = strconv.ParseFloat(scrapedCirculatingSupply, 64)
-			if CirculatingSupplyParseError != nil {
-				fmt.Println("CirculatingSupplyParseError")
-				fmt.Println(CirculatingSupplyParseError)
-			}
-
-			/*
-				-----------------------------------------------------------------------------------
-			*/
-
-			var scrapedVolume string
-			var volumeResult, _ = scrape.Find(resultz, scrape.ByClass("volume"))
-			scrapedVolume = scrape.Attr(volumeResult, "data-btc")
-			var parsedVolume, volumeParseError = strconv.ParseFloat(scrapedVolume, 64)
-			if CirculatingSupplyParseError != nil {
-				fmt.Println("volumeParseError")
-				fmt.Println(volumeParseError)
-			}
-
-			/*
-				-----------------------------------------------------------------------------------
-			*/
-
-			var finalOneH float64
-			oneHMatcher := func(n *html.Node) bool {
-				if n.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Td {
-					return scrape.Attr(n, "data-timespan") == "1h"
-				}
-				return false
-			}
-			var scrapedOneH string
-			var oneHResult, oneHResultNF = scrape.Find(resultz, oneHMatcher)
-			if oneHResultNF == true {
-				scrapedOneH = scrape.Attr(oneHResult, "data-sort")
-				var parsedOneH, oneHParseError = strconv.ParseFloat(scrapedOneH, 64)
-				if oneHParseError != nil {
-					fmt.Println("oneHParseError")
-					fmt.Println(oneHParseError)
-				}
-				finalOneH = parsedOneH
-			}
-
-			/*
-				-----------------------------------------------------------------------------------
-			*/
-
-			var finalOneM float64
-			oneMMatcher := func(n *html.Node) bool {
-				if n.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Td {
-					return scrape.Attr(n, "data-timespan") == "24h"
-				}
-				return false
-			}
-			var scrapedOneM string
-			var oneMResult, oneMResultNF = scrape.Find(resultz, oneMMatcher)
-			if oneMResultNF == true {
-
-				scrapedOneM = scrape.Attr(oneMResult, "data-percentusd")
-				var parsedOneM, oneMParseError = strconv.ParseFloat(scrapedOneM, 64)
-				if oneMParseError != nil {
-					fmt.Println("oneMParseError")
-					fmt.Println(oneMParseError)
-					finalOneM = parsedOneM
-				}
-			}
-
-			/*
-				-----------------------------------------------------------------------------------
-			*/
-
-			var finalOneW float64
-			oneWMatcher := func(n *html.Node) bool {
-				if n.Parent.DataAtom == atom.Tr && n != nil && n.DataAtom == atom.Td {
-					return scrape.Attr(n, "data-timespan") == "1h"
-				}
-				return false
-			}
-			var scrapedOneW string
-			var oneWResult, oneWResultNF = scrape.Find(resultz, oneWMatcher)
-			if oneWResultNF == true {
-				scrapedOneW = scrape.Attr(oneWResult, "data-percentusd")
-				var parsedOneW, oneWParseError = strconv.ParseFloat(scrapedOneW, 64)
-				if oneWParseError != nil {
-					fmt.Println("oneWParseError")
-					fmt.Println(oneWParseError)
-				}
-				finalOneW = parsedOneW
-			}
-
-			/*
-				-----------------------------------------------------------------------------------
-			*/
-
-			InsertCurrency(Currency{scrapedName, scrapedSymbol, parsedMarketCap, parsedPrice, parsedCirculatingSupply, parsedVolume, finalOneH, finalOneM, finalOneW})
+			InsertCurrency(Currency{indCurrency.Id, indCurrency.Name, indCurrency.Symbol, indCurrency.Rank, indCurrency.PriceUsd, indCurrency.PriceBtc, indCurrency.Twenty4hVolumeUsd, indCurrency.MarketCapUsd, indCurrency.AvailableSupply, indCurrency.TotalSupply, indCurrency.MaxSupply, indCurrency.PercentChange1h, indCurrency.PercentChange24h, indCurrency.PercentChange7d, indCurrency.LastUpdated})
 
 		}
-
-		go func() {
-			wg1.Wait()
-			wg.Done()
-		}()
 
 	}
-	go func() {
-		wg.Wait()
-	}()
+
 	return true
 
 }
 
-func getUrls() {
+func getUrls() bool {
 	urlArr := new(UrlArrStruct)
 	raw, err := ioutil.ReadFile("./sites.json")
 	if err != nil {
@@ -500,28 +371,16 @@ func getUrls() {
 	}
 	json.Unmarshal(raw, &urlArr)
 
+	resultNodeCurrencyGen(respGen("https://api.coinmarketcap.com/v1/ticker/?limit=0"))
 	resultNodeExchangeGen(rootGen(respGen(urlArr.Urls...)))
-	resultNodeCurrencyGen(rootGen(respGen("https://coinmarketcap.com/all/views/all/")))
-	// jsonData, err := json.Marshal(resultList)
 
 	if err != nil {
 		panic(err)
 	}
-
-	// // write to JSON file
-	// jsonFile, err := os.Create("./DellResults.json")
-
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer jsonFile.Close()
-
-	// jsonFile.Write(jsonData)
-	// jsonFile.Close()
-	// fmt.Println("JSON data written to ", jsonFile.Name())
+	return true
 
 }
 
 func main() {
-	getUrls()
+	fmt.Println(getUrls())
 }
